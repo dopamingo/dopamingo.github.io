@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting...</title>
+    <script>
+      // GitHub Pages SPA redirect (for BrowserRouter deep links).
+      (function () {
+        var l = window.location;
+        var path = l.pathname.replace(/^\//, "");
+        var query = l.search ? "&" + l.search.slice(1).replace(/&/g, "~and~") : "";
+        var hash = l.hash || "";
+        var redirectUrl = l.protocol + "//" + l.host + "/?/" + path.replace(/&/g, "~and~") + query + hash;
+        l.replace(redirectUrl);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>
