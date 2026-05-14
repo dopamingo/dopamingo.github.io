@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><head><base target="_top"><script async src="https://www.googletagmanager.com/gtag/js?id=G-5FVGG4CV77"></script><script>function gtag(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],gtag("js",new Date),gtag("config","G-5FVGG4CV77")</script><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>10: Magnetic Liquid</title><style>body,html{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background-color:#000}canvas{display:block;width:100vw;height:100vh}.ui{position:absolute;top:20px;left:20px;color:#0fc;font-family:'JetBrains Mono',monospace;pointer-events:none;z-index:10}.ui h1{font-size:1.5rem;margin:0;font-weight:800;letter-spacing:-.05em}.ui p{font-size:.8rem;opacity:.6}</style></head><body><div class="ui"><h1>10: Magnetic Liquid</h1><p>Interactive Ripple Distortion Shader</p></div><canvas id="gl-canvas"></canvas><script type="x-shader/x-vertex" id="vertex-shader">attribute vec2 position;
+        void main() {
+            gl_Position = vec4(position, 0.0, 1.0);
+        }</script><script type="x-shader/x-fragment" id="fragment-shader">precision highp float;
+
+        uniform vec2 u_resolution;
+        uniform float u_time;
+        uniform vec2 u_mouse;
+
+        // Simplex 2D noise
+        vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+
+        float snoise(vec2 v){
+          const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                   -0.577350269189626, 0.024390243902439);
+          vec2 i  = floor(v + dot(v, C.yy) );
+          vec2 x0 = v -   i + dot(i, C.xx);
+          vec2 i1;
+          i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+          vec4 x12 = x0.xyxy + C.xxzz;
+          x12.xy -= i1;
+          i = mod(i, 289.0);
+          vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+          + i.x + vec3(0.0, i1.x, 1.0 ));
+          vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+            dot(x12.zw,x12.zw)), 0.0);
+          m = m*m ;
+          m = m*m ;
+          vec3 x = 2.0 * fract(p * C.www) - 1.0;
+          vec3 h = abs(x) - 0.5;
+          vec3 a0 = x - floor(x + 0.5);
+          vec3 g = a0 * vec3(x0.x,x12.xz,x12.w) + h * vec3(x0.y,x12.yw,x12.z);
+          vec3 l = 1.79284291400159 - 0.85373472095314 * ( g*g + h*h );
+          vec3 vec = 130.0 * m * ( 1.79284291400159 - 0.85373472095314 * ( g*g + h*h ) * (g * vec3(x0.x,x12.xz,x12.w) + h * vec3(x0.y,x12.yw,x12.z)));
+          return 130.0 * dot(m, g);
+        }
+
+        void main() {
+            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+            vec2 center = u_mouse / u_resolution.xy;
+            
+            // Distort UV based on mouse distance
+            float dist = distance(uv, center);
+            float strength = 0.15 * exp(-dist * 5.0); // Liquid attraction falloff
+            
+            vec2 ripple = uv + (uv - center) * strength * sin(dist * 40.0 - u_time * 5.0);
+            
+            // Add noise for liquid texture
+            float n = snoise(ripple * 3.0 + u_time * 0.2);
+            float n2 = snoise(ripple * 6.0 - u_time * 0.1);
+            
+            // Color grading
+            vec3 color1 = vec3(0.0, 0.05, 0.1); // Deep dark blue
+            vec3 color2 = vec3(0.0, 1.0, 0.8); // Mint accent (#00ffcc)
+            
+            float mixVal = smoothstep(-0.5, 1.0, n + n2 * 0.5);
+            vec3 baseColor = mix(color1, color2, mixVal * 0.2);
+            
+            // Add highlights on ripples
+            float highlight = pow(max(0.0, 1.0 - dist * 2.0), 4.0) * strength * 10.0;
+            baseColor += color2 * highlight;
+            
+            // Subtle pulse
+            baseColor += color2 * (0.02 * sin(u_time));
+
+            gl_FragColor = vec4(baseColor, 1.0);
+        }</script><script>const canvas=document.getElementById("gl-canvas"),gl=canvas.getContext("webgl");function createShader(e,r,o){const t=e.createShader(r);return e.shaderSource(t,o),e.compileShader(t),e.getShaderParameter(t,e.COMPILE_STATUS)?t:(console.error(e.getShaderInfoLog(t)),e.deleteShader(t),null)}gl||alert("WebGL not supported");const vsSource=document.getElementById("vertex-shader").text,fsSource=document.getElementById("fragment-shader").text,vertexShader=createShader(gl,gl.VERTEX_SHADER,vsSource),fragmentShader=createShader(gl,gl.FRAGMENT_SHADER,fsSource),program=gl.createProgram();gl.attachShader(program,vertexShader),gl.attachShader(program,fragmentShader),gl.linkProgram(program),gl.getProgramParameter(program,gl.LINK_STATUS)||console.error(gl.getProgramInfoLog(program));const positionBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,positionBuffer);const positions=[-1,-1,1,-1,-1,1,-1,1,1,-1,1,1];gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(positions),gl.STATIC_DRAW);const positionLocation=gl.getAttribLocation(program,"position"),resolutionLocation=gl.getUniformLocation(program,"u_resolution"),timeLocation=gl.getUniformLocation(program,"u_time"),mouseLocation=gl.getUniformLocation(program,"u_mouse");let mouseX=0,mouseY=0;function resize(){canvas.width=window.innerWidth,canvas.height=window.innerHeight,gl.viewport(0,0,canvas.width,canvas.height)}function render(e){e*=.001,gl.clearColor(0,0,0,1),gl.clear(gl.COLOR_BUFFER_BIT),gl.useProgram(program),gl.enableVertexAttribArray(positionLocation),gl.bindBuffer(gl.ARRAY_BUFFER,positionBuffer),gl.vertexAttribPointer(positionLocation,2,gl.FLOAT,!1,0,0),gl.uniform2f(resolutionLocation,canvas.width,canvas.height),gl.uniform1f(timeLocation,e),gl.uniform2f(mouseLocation,mouseX,mouseY),gl.drawArrays(gl.TRIANGLES,0,6),requestAnimationFrame(render)}window.addEventListener("mousemove",e=>{mouseX=e.clientX,mouseY=canvas.height-e.clientY}),window.addEventListener("resize",resize),resize(),requestAnimationFrame(render)</script></body></html>
